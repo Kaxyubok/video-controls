@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>videoControls</title>
+    <script src="https://cdn.bootcss.com/jquery/2.2.4/jquery.js"></script>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/videoControls.css">
+</head>
+<body>
+<div class="videobox">
+    <video class="video" src=""></video>
+    <div class="control">
+        <div class="paly">
+            <i class="icon-play3"></i>
+        </div>
+        <div class="range">
+            <div class="time-tracker">
+                <div class="timeBar"></div>
+            </div>
+        </div>
+        <div class="time">
+            <span class="current">00:00</span>/<span class="duration"></span>
+        </div>
+        <div class="volume">
+            <i class="icon-volume-medium"></i>
+            <div class="volume-line hide">
+                <div class="volumeNum">100</div>
+                <div class="slider-tracker">
+                    <div class="volumeBar"></div>
+                    <div class="slider-handle"></div>
+                </div>
+            </div>
+        </div>
+        <div class="screen">
+            <i class="icon-enlarge"></i>
+            <i class="icon-shrink hide"></i>
+        </div>
+    </div>
+    <div class="volume-crease hide">
+        <div class="crease">
+            <i class="icon-volume-increase"></i>
+            <i class="icon-volume-decrease hide"></i>
+        </div>
+        <div class="sound">100%</div>
+    </div>
+</div>
+</body>
+<script>
+    var myVid = $('.video');
+    var _myVid = document.querySelector('.video');
+    var _elem = $('.videobox');
+    var elem = document.querySelector(".videobox");
+    var _playType = $('.paly').find('.icon-play3');
+    var videoType = false;
+    var volumeSth = {
+        top: 0,
+        num: 100
+    };
+    var t = 5;
+
+    _elem.on('click', function () {
+        videoType = true;
+    });
+    $('.video,.paly').on('click', function () {
+        playType();
+    });
+
+    var playType = function () {
+        if (_myVid.paused) {
+            _myVid.play();
+            _playType.addClass('icon-pause2');
+        } else {
+            _myVid.pause();
+            _playType.removeClass('icon-pause2');
+        }
+    };
+    _myVid.onended = function () {
+        _playType.removeClass('icon-pause2');
+    }
+
+    //获得视频的时间总长度
+    myVid.on('loadedmetadata', function () {
+        $('.duration').text(dateFormat(_myVid.duration));
+    });
+    //更新视频进度
+    myVid.on('timeupdate', function () {
+        $('.current').text(dateFormat(_myVid.currentTime));
+        var currentPos = _myVid.currentTime; //获得当前播放时间
+        var maxduration = _myVid.duration; //获得影片播放时间
+        var percentage = 100 * currentPos / maxduration; //百分比
+        $('.timeBar').css('width', percentage + '%');
+    });
+
+    // 初始默认的拖动状态为false
+    var timeDrag = false;//视频
+    var volumeDrag = false;//音量
+    var volumeShow = true;//音量条
+    var volumeMove = false;//移动到音量条
+    $('.time-tracker').on('mousedown', function (e) {
+        var left = e.pageX - $('.range').offset().left;
+        updatetimeBar(left);
+        timeDrag = true;
+    });
+
+    $('.slider-tracker').on('mousedown', function (e) {
+        var top = e.pageY - $('.slider-tracker').offset().top;
+        updatevolumeBar(top);
+        volumeDrag = true;
+    });
+
+    $('.volume').on('mouseover', function () {
+        $('.volume-line').removeClass('hide');
+    });
+    $('.volume').on('mouseleave', function () {
+        if (!volumeMove) {
+            $('.volume-line').addClass('hide');
+        }
+    });
+    $('.volume-line').on('mouseleave', function () {
+        volumeMove = true;
+        if (volumeDrag) {
+            volumeShow = false
+        }else{
+            $('.volume-line').addClass('hide');
+        }
+    });
+    $('.volume-line').on('mouseenter', function () {
+        if (volumeDrag) {
+            volumeShow = true;
+        }
+    });
+    $(document).on('mousemove', function (e) {
+        if (timeDrag) {
+            var left = e.pageX - $('.range').offset().left;
+            updatetimeBar(left);
+            _myVid.pause();
+            _playType.removeClass('icon-pause2');
+        }
+        if (volumeDrag) {
+            var top = e.pageY - $('.slider-tracker').offset().top;
+            $('.volume-line').removeClass('hide');
+            updatevolumeBar(top);
+        }
+    });
+
+    $(document).mouseup(function () {
+        if (volumeDrag && volumeShow === false) {
+            $('.volume-line').addClass('hide');
+        }
+        if (timeDrag) {
+            _myVid.play();
+            _playType.addClass('icon-pause2');
+        }
+        timeDrag = false;
+        volumeDrag = false;
+        volumeMove = false;
+    });
+
+    var updatetimeBar = function (x) {
+        var progress = $('.time-tracker').width();
+        var maxduration = _myVid.duration;
+        //检查拖动进度条的范围是否合法
+        if (x >= progress) {
+            x = progress;
+        }
+        _myVid.currentTime = x / progress * maxduration;
+        _myVid.pause();
+    };
+    var updatevolumeBar = function (y) {
+        var progress = $('.slider-tracker').height();
+        var top = y;
+        //检查拖动进度条的范围是否合法
+        if (y >= 63) {
+            y = 63;
+            top = 63;
+        } else if (y <= 0) {
+            y = 0;
+            top = 0;
+        }
+        $('.slider-handle').css('top', y + 'px');
+        if (top === 70) {
+            $('.icon-volume-medium').addClass('icon-volume-mute2');
+        } else {
+            $('.icon-volume-medium').removeClass('icon-volume-mute2');
+        }
+        volumeSth.top = top;
+        top = 1 - top / 63;
+        _myVid.volume = top;
+        $('.volumeNum').text(parseInt(top * 100));
+        $('.sound').text(parseInt(top * 100) + '%');
+        volumeSth.num = parseInt(top * 100);
+        $('.volumeBar').css('height', volumeSth.num + '%');
+    };
+
+    //时间
+    function dateFormat(date) {
+        var h = Math.floor(date / 3600);
+        var m = (Math.floor((date - h * 3600) / 60) / 100).toFixed(2).slice(-2);
+        var s = ((date - h * 3600 - m * 60) / 100).toFixed(2).slice(-2);
+        if (date > 3600) {
+            return result = h + ":" + m + ":" + s;
+        } else {
+            return result = m + ":" + s;
+        }
+    }
+
+    // Find the right method, call on correct element
+    $('.icon-enlarge').on('click', function () {
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+            elem.mozRequestFullScreen();
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen();
+        }
+        $(this).addClass('hide');
+        $('.icon-shrink').removeClass('hide');
+        _elem.addClass('size');
+    });
+    // Whack fullscreen
+    $('.icon-shrink').on('click', function () {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+        $(this).addClass('hide');
+        $('.icon-enlarge').removeClass('hide');
+        _elem.removeClass('size');
+    });
+
+    //静音
+    $('.icon-volume-medium').on('click', function () {
+        if (_myVid.muted) {
+            _myVid.muted = false;
+            $(this).removeClass('icon-volume-mute2');
+            $('.slider-handle').css('top', volumeSth.top);
+            $('.volumeNum').text(volumeSth.num);
+            $('.volumeBar').css('height', volumeSth.num + '%');
+        } else {
+            _myVid.muted = true;
+            $(this).addClass('icon-volume-mute2');
+            $('.slider-handle').css('top', '63px');
+            $('.volumeNum').text(0);
+            $('.volumeBar').css('height', 0);
+        }
+    });
+
+    //调整音量/调整视频进度
+    document.onkeydown = function (event) {
+        var e = event || window.event || arguments.callee.caller.arguments[0];
+        if (videoType) {
+            if (e && e.keyCode === 32) {
+                playType();
+            }
+            if (e && e.keyCode === 37) {
+//                alert('左')
+            }
+            if (e && e.keyCode === 38) {
+                increase()
+            }
+            if (e && e.keyCode === 39) {
+//                alert('右')
+            }
+            if (e && e.keyCode === 40) {
+                decrease()
+            }
+        }
+    };
+
+    function increase() {
+        var _sound = $('.sound');
+        var num = parseInt(_sound.text());
+        if (num <= 5) {
+            _sound.text((num + 5) + '%');
+            _myVid.volume = (num + 5) / 100;
+            $('.icon-volume-medium').removeClass('icon-volume-mute2');
+            volumeSth.top = (1 - (num + 5) / 100) * 63;
+            volumeSth.num = parseInt((1 - volumeSth.top / 63) * 100);
+        } else if (num <= 95) {
+            _sound.text((num + 5) + '%');
+            _myVid.volume = (num + 5) / 100;
+            volumeSth.top = (1 - (num + 5) / 100) * 63;
+            volumeSth.num = parseInt((1 - volumeSth.top / 63) * 100);
+        } else if (num >= 95) {
+            _sound.text(100 + '%');
+            _myVid.volume = 1;
+            volumeSth.top = 0;
+            volumeSth.num = 100;
+        }
+        $('.slider-handle').css('top', volumeSth.top);
+        $('.volumeNum').text(volumeSth.num);
+        $('.volumeBar').css('height', volumeSth.num + '%');
+        $('.volume-crease').removeClass('hide');
+        setTimeout(function () {
+            $('.volume-crease').addClass('hide');
+        }, 1500);
+    }
+
+    function decrease() {
+        var _sound = $('.sound');
+        var num = parseInt(_sound.text());
+        if (num > 5) {
+            _sound.text((num - 5) + '%');
+            _myVid.volume = (num - 5) / 100;
+            volumeSth.top = (1 - (num - 5) / 100) * 63;
+            volumeSth.num = parseInt((1 - volumeSth.top / 63) * 100);
+        } else if (num <= 5) {
+            _sound.text(0);
+            _myVid.volume = 0;
+            $('.icon-volume-medium').addClass('icon-volume-mute2');
+            volumeSth.top = 63;
+            volumeSth.num = 0;
+        }
+        $('.slider-handle').css('top', volumeSth.top);
+        $('.volumeNum').text(volumeSth.num);
+        $('.volumeBar').css('height', volumeSth.num + '%');
+        $('.volume-crease').removeClass('hide');
+        setTimeout(function () {
+            $('.volume-crease').addClass('hide');
+        }, 1500);
+    }
+
+    //controls状态
+    myVid.on('mousemove', function (e) {
+        if (videoType) {
+            var prt = e.offsetY / myVid.height();
+            if (prt > 0.5) {
+                $('.control').removeClass('animate');
+            } else {
+                $('.control').addClass('animate');
+            }
+        }
+    });
+    _elem.mouseleave(function (e) {
+        if (videoType) {
+            $('.control').addClass('animate');
+        }
+    });
+
+</script>
+</html>
